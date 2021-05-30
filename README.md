@@ -21,3 +21,4 @@ To solve the problem of finding the best way to effectively predict the best sto
 ![STOCQUP1](https://user-images.githubusercontent.com/72306130/120119196-f9d93300-c1b3-11eb-9673-6482959c1a98.png)
 
 *Result Stocks*
+![STOCQUP2](https://user-images.githubusercontent.com/72306130/120119242-43298280-c1b4-11eb-8de1-94d8dc707f4e.png)
