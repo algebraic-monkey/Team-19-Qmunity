@@ -1,6 +1,20 @@
+from qiskit import Aer
+from qiskit.aqua import QuantumInstance
+from qiskit.finance.applications.ising import portfolio
+from qiskit.circuit.library import TwoLocal
+from qiskit.aqua.algorithms import VQE, QAOA
+from qiskit.optimization.applications.ising.common import sample_most_likely
+from qiskit.finance.data_providers import WikipediaDataProvider
+from qiskit.aqua.components.optimizers import COBYLA
+import warnings
+from matplotlib.cbook import MatplotlibDeprecationWarning
+import datetime
+import numpy as np
 from tkinter import *
 from tkinter import messagebox
 import webbrowser
+
+warnings.filterwarnings('ignore', category=MatplotlibDeprecationWarning)
 GREY = "#515B52"
 GREEN = "#61C332"
 
@@ -11,19 +25,91 @@ def redirect():
 
 
 def display(output):
-    messagebox.showinfo("Best Stock Option", output)
+    messagebox.showinfo("Best Stock Option", f"The best stocks to buy are:\n{output}")
 
 
 def output():
-    user_stocks = list(symbol_entry.get().split(","))
-    print(user_stocks)
-    if len(user_stocks) > 0:
-        is_ok = messagebox.askokcancel(user_stocks,
-                                       f"The stocks you entered are:\n Stocks:{user_stocks}\n Do you want to proceed?")
+    stocks = list(symbol_entry.get().split(","))
+    print(stocks)
+    if len(stocks) > 0:
+        is_ok = messagebox.askokcancel(stocks,
+                                       f"The stocks you entered are:\n Stocks:{stocks}\n Do you want to proceed?")
         if is_ok:
             try:
-                func_output = ""
-                display(func_output)
+
+                token = "tY9kE8SRG27yxy5hXmpu"
+                num_assets = len(stocks)
+                wiki = WikipediaDataProvider(token=token,
+                                             tickers=stocks,
+                                             start=datetime.datetime(2017, 8, 15),
+                                             end=datetime.datetime(2021, 3, 5))
+                wiki.run()
+
+                mu = wiki.get_period_return_mean_vector()
+                sigma = wiki.get_period_return_covariance_matrix()
+                q = 0.5  # set risk factor
+                budget = 2  # set budget
+                penalty = num_assets  # set parameter to scale the budget penalty term
+
+                qubitOp, offset = portfolio.get_operator(mu, sigma, q, budget, penalty)
+
+                # Prep for solvers
+                seed = 50
+
+                # Set up the classical optimiser
+                cobyla = COBYLA()
+                cobyla.set_options(maxiter=500)
+
+                # Set up the quantum instance backend
+                backend = Aer.get_backend('statevector_simulator')
+                quantum_instance = QuantumInstance(backend=backend, shots=8000, seed_simulator=seed,
+                                                   seed_transpiler=seed)
+
+                qaoa_counts = []
+                qaoa_values = []
+
+                def store(counts, para, mean, std):
+                    qaoa_counts.append(counts)
+                    qaoa_values.append(mean)
+
+                qaoa = QAOA(qubitOp, cobyla, 1, callback=store)
+                qaoa.random_seed = seed
+
+                qaoa_result = qaoa.run(quantum_instance)
+
+                def index_to_selection(i, num_assets):
+                    s = "{0:b}".format(i).rjust(num_assets)
+                    x = np.array([1 if s[i] == '1' else 0 for i in reversed(range(num_assets))])
+                    return x
+
+                li = []
+
+                def print_result(result):
+                    selection = sample_most_likely(result.eigenstate)
+                    value = portfolio.portfolio_value(selection, mu, sigma, q, budget, penalty)
+                    print(list(selection))
+                    answer = selection.tolist()
+                    s = ""
+                    for i in range(num_assets):
+                        if (answer[i] == 1):
+                            s = s + f"{stocks[i],}"
+                    display(s)
+
+                backend = Aer.get_backend('statevector_simulator')
+                seed = 50
+
+                cobyla = COBYLA()
+                cobyla.set_options(maxiter=500)
+                ry = TwoLocal(qubitOp.num_qubits, 'ry', 'cz', reps=3, entanglement='full')
+                vqe = VQE(qubitOp, ry, cobyla)
+                vqe.random_seed = seed
+
+                quantum_instance = QuantumInstance(backend=backend, seed_simulator=seed, seed_transpiler=seed)
+
+                result = vqe.run(quantum_instance)
+
+                print_result(result)
+
                 pass
             except FileNotFoundError:
                 pass
@@ -52,7 +138,6 @@ canvas = Canvas(width=170, height=157, highlightthickness=0, bg="white")
 canvas.grid(row=0, column=1)
 logo_img = PhotoImage(file="logo2.png")
 logo = canvas.create_image(83, 77, image=logo_img)
-
 
 buffer1 = Label(pady=40, text="", bg=GREY)
 buffer1.grid(row=1, column=0)
