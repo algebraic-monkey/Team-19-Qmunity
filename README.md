@@ -22,3 +22,5 @@ To solve the problem of finding the best way to effectively predict the best sto
 
 *Result Stocks*
 ![STOCQUP2](https://user-images.githubusercontent.com/72306130/120119242-43298280-c1b4-11eb-8de1-94d8dc707f4e.png)
+*Sequential operation through screenshots*
+![STOCQUP OPERATION THROUGH SCREENSHOTS]
