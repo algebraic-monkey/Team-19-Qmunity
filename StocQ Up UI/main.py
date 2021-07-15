@@ -38,7 +38,7 @@ def output():
             try:
 
                 token = "************************"
-                num_assets = ltY9kE8SRG27yxy5hXmpuen(stocks)
+                num_assets = len(stocks)
                 wiki = WikipediaDataProvider(token=token,
                                              tickers=stocks,
                                              start=datetime.datetime(2017, 8, 15),
